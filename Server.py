@@ -23,6 +23,7 @@ class Server:
 
             # socket.accept will return (client_socket, client_address)
             client_info['rtspSocket'] = rtsp_socket.accept()
+            client_info['rtspSocket'][0].settimeout(None)
             ServerWorker(client_info).run()
 
 
