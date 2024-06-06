@@ -72,7 +72,7 @@ class ServerWorker:
 
                 # Get the RTP/UDP port from the last line
                 self.clientInfo['rtpPort'] = request[2].split(' ')[3]
-                print(self.clientInfo['rtpPort'])
+                # print(self.clientInfo['rtpPort'])
 
 
         # Process PLAY request
@@ -189,11 +189,13 @@ class ServerWorker:
         return rtp_packet.getPacket()
 
     def reply_rtsp(self, code, seq):
+        print('start reply rtsp', code, seq)
         """Send RTSP reply to the client."""
         if code == self.OK_200:
             #print("200 OK")
             reply = 'RTSP/1.0 200 OK\nCSeq: ' + seq + '\nSession: ' + str(self.clientInfo['session'])
             conn_socket = self.clientInfo['rtspSocket'][0]
+            print('replay content ', reply.encode())
             conn_socket.send(reply.encode())
 
         # Error messages
