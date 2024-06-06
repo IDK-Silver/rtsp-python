@@ -14,7 +14,7 @@ class Server:
             print("[Usage: Server.py Server_port]\n")
 
         rtsp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        rtsp_socket.bind(('127.0.0.1', server_port))
+        rtsp_socket.bind(('', server_port))
         rtsp_socket.listen(5)
 
         # Receive client info (address,port) through RTSP/TCP session
