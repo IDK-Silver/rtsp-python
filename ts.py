@@ -22,9 +22,12 @@ while True:
     inio = received.decode("utf-8")
     print("接收客户端的消息：", inio)
     localtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    #
+    # with open("text.txt", "a+") as fp:
+    #     fp.write(inio + "      " + localtime + "\n")
 
-    with open("text.txt", "a+") as fp:
-        fp.write(inio + "      " + localtime + "\n")
+    # 发送OK回复到客户端
+    s.sendto("OK".encode(), address)
 
     if inio.lower() == "del":
         break
