@@ -7,7 +7,7 @@ import time
 
 # 设置服务器的IP和端口
 SERVER_HOST = "0.0.0.0"
-SERVER_PORT = 5004
+SERVER_PORT = 5006
 
 # 这是文件读写缓存区
 BUFFER_SIZE = 4096

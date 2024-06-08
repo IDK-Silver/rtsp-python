@@ -3,7 +3,7 @@ import tkinter.messagebox as tkMessageBox
 from PIL import Image, ImageTk
 import socket, threading, sys, traceback, os
 
-
+import miniupnpc
 
 from RtpPacket import RtpPacket
 
@@ -26,6 +26,8 @@ class Client:
 
     # Initiation..
     def __init__(self, master, serveraddr, serverport, rtpport, filename):
+        self.rtp_socket = None
+        self.rtspSocket = None
         self.master = master
         self.master.protocol("WM_DELETE_WINDOW", self.handler)
         self.createWidgets()
@@ -38,6 +40,24 @@ class Client:
         self.requestSent = -1
         self.teardownAcked = 0
         self.frameNbr = 0
+
+
+
+
+    # def setup_port_forwarding(self, protocol, external_port, internal_port):
+    #     upnp = miniupnpc.UPnP()
+    #     upnp.discoverdelay = 200  # 延迟200ms进行设备发现
+    #     upnp.discover()  # 发现 UPnP 设备
+    #     upnp.selectigd()  # 选择 IGD (Internet Gateway Device)
+    #
+    #     internal_client = upnp.lanaddr  # 内部客户端的 IP 地址
+    #
+    #     # 添加端口映射
+    #     try:
+    #         upnp.addportmapping(external_port, protocol, internal_client, internal_port, 'UPnP Test', '')
+    #         print(f"Port {external_port} forwarded to {internal_client}:{internal_port} ({protocol})")
+    #     except Exception as e:
+    #         print(f"Failed to add port mapping: {e}")
 
     def createWidgets(self):
         """Build GUI."""
@@ -84,7 +104,12 @@ class Client:
         """Setup button handler."""
         if self.state == self.INIT:
             self.connectToServer()
+            print(self.rtspSocket.getsockname())
+            extern_port = self.rtspSocket.getsockname()[1]
+            # self.setup_port_forwarding('TCP', extern_port, extern_port)
             self.sendRtspRequest(self.SETUP)
+
+
 
     def exitClient(self):
         """Teardown button handler."""
@@ -121,8 +146,8 @@ class Client:
         print('success start listen rtp ')
         while True:
             try:
-                data = self.rtp_socket.recv(20480)
-                if data:
+                data, address = self.rtp_socket.recvfrom(8192)
+                if data is not None:
                     rtpPacket = RtpPacket()
                     rtpPacket.decode(data)
 
@@ -135,6 +160,7 @@ class Client:
                         self.frameNbr = currFrameNbr
                         self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
             except:
+                print('error recv rtp')
                 # Stop listening upon requesting PAUSE or TEARDOWN
                 if self.playEvent.isSet():
                     break
@@ -164,6 +190,7 @@ class Client:
     def connectToServer(self):
         """Connect to the Server. Start a new RTSP/TCP session."""
         self.rtspSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.rtspSocket.settimeout(None)
         try:
             self.rtspSocket.connect((self.serverAddr, self.serverPort))
         except:
@@ -174,15 +201,16 @@ class Client:
 
         # Setup request
         if requestCode == self.SETUP and self.state == self.INIT:
-            threading.Thread(target=self.recvRtspReply).start()
             # Update RTSP sequence number.
             # ...
             self.rtspSeq = 1
             # Write the RTSP request to be sent.
             request = "SETUP " + str(self.fileName) + "\n " + str(self.rtspSeq) + " \n RTSP/1.0 RTP/UDP " + str(self.rtpPort) + ' '
             self.rtspSocket.send(request.encode())
+            threading.Thread(target=self.recvRtspReply).start()
 
-            # Keep track of the sent request.
+
+        # Keep track of the sent request.
             # self.requestSent = ...
             self.requestSent = self.SETUP
         # Play request
@@ -208,6 +236,7 @@ class Client:
             request = "PAUSE " + str(self.fileName) + "\n " + str(self.rtspSeq)
             self.rtspSocket.send(request.encode("utf-8"))
             print ('-'*60 + "\nPAUSE request sent to Server...\n" + '-'*60)
+            # Keep track of the sent request.
             # Keep track of the sent request.
             # self.requestSent = ...
             self.requestSent = self.PAUSE
@@ -261,7 +290,8 @@ class Client:
     def recvRtspReply(self):
         """Receive RTSP reply from the server."""
         while True:
-            reply = self.rtspSocket.recv(1024)
+            self.rtspSocket.settimeout(None)
+            reply = self.rtspSocket.recv(4096)
 
             if reply:
                 self.parseRtspReply(reply.decode("utf-8"))
@@ -316,12 +346,12 @@ class Client:
 
     def openRtpPort(self):
         print('binding RTP port')
-
+        # self.setup_port_forwarding('UDP', self.rtpPort, self.rtpPort)
         # Create a new datagram socket to receive RTP packets from the server
         self.rtp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         # ...
-        self.rtp_socket.settimeout(0.5)
+        # self.rtp_socket.settimeout(None)
         try:
 
             # binding localhost because udp is rev from server

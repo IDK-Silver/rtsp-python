@@ -26,6 +26,9 @@ class ServerWorker:
 
     def __init__(self, client_info):
         self.clientInfo = client_info
+        # Create a new socket for RTP/UDP
+        self.clientInfo['rtpSocket'] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
 
     def run(self):
         threading.Thread(target=self.recv_rtsp_request).start()
@@ -34,7 +37,7 @@ class ServerWorker:
         """Receive RTSP request from the client."""
         conn_socket = self.clientInfo['rtspSocket'][0]
         while True:
-            data = conn_socket.recv(256)
+            data = conn_socket.recv(2048)
             if data:
                 print("Data received:\n" + data.decode("utf-8"))
                 self.process_rtsp_request(data.decode("utf-8"))
@@ -81,9 +84,6 @@ class ServerWorker:
                 print("processing PLAY\n")
                 self.state = self.PLAYING
 
-                # Create a new socket for RTP/UDP
-                self.clientInfo["rtpSocket"] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
                 self.reply_rtsp(self.OK_200, seq[1])
 
                 # Create a new thread and start sending RTP packets
@@ -119,7 +119,7 @@ class ServerWorker:
                 print("processing SPEEDUP\n")
                 self.state = self.PLAYING2
                 # Create a new socket for RTP/UDP
-                self.clientInfo["rtpSocket"] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                # self.clientInfo['rtpSocket'] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
                 self.reply_rtsp(self.OK_200, seq[1])
 
@@ -142,10 +142,16 @@ class ServerWorker:
             if data:
                 frameNumber = self.clientInfo['videoStream'].frameNbr()
                 try:
-                    address = self.clientInfo['rtspSocket'][1][0]
-                    port = int(self.clientInfo['rtpPort'])
-                    print(address, port)
-                    self.clientInfo['rtpSocket'].sendto(self.make_rtp_packet(data, frameNumber), (address, port))
+                    client_ip = self.clientInfo['rtspSocket'][1][0]
+                    client_rtp_port = self.clientInfo['rtpPort']
+
+                    address = (
+                        client_ip,
+                        int(client_rtp_port)
+                    )
+                    print('rtp target', address)
+                    # print(address, port)
+                    self.clientInfo['rtpSocket'].sendto(self.make_rtp_packet(data, frameNumber), address)
                 except:
                     print("Connection Error")
 
